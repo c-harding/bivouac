@@ -1,0 +1,66 @@
+name: Deploy
+on:
+  workflow_dispatch
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: live
+      url: https://bivouac.charding.dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: bivouac
+      - name: Setup
+        env:
+          EC2_KEY: ${{ secrets.EC2_KEY }}
+          DEPLOY_SCRIPT_LOCATION: ${{ secrets.DEPLOY_SCRIPT_LOCATION }}
+
+          DOMAIN: bivouac.charding.dev
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEYPAIR: keypair.pem
+          DEPLOY_DIR: bivouac.charding.dev
+          SERVER_PORT: 5000
+          PORT_VARIABLE: BIVOUAC_PORT
+          SOURCE_DIR: bivouac
+        run: |
+          curl $DEPLOY_SCRIPT_LOCATION/connect > connect
+          curl $DEPLOY_SCRIPT_LOCATION/deploy > deploy
+          chmod u+x connect deploy
+          echo "$EC2_KEY" >> keypair.pem
+
+          mkdir ~/.ssh
+          chmod 700 ~/.ssh
+          echo "Host *\nStrictHostKeyChecking no\nCheckHostIP no\nTCPKeepAlive yes\nServerAliveInterval 30\nServerAliveCountMax 180\nVerifyHostKeyDNS yes\nUpdateHostKeys yes\n" > ~/.ssh/config
+          chmod 600 ~/.ssh/config keypair.pem
+          ls -lah ~/.ssh
+          touch continue
+
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+        with:
+          limit-access-to-actor: true
+        env:
+          DOMAIN: bivouac.charding.dev
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEYPAIR: keypair.pem
+          DEPLOY_DIR: bivouac.charding.dev
+          SERVER_PORT: 5000
+          PORT_VARIABLE: BIVOUAC_PORT
+          SOURCE_DIR: bivouac
+      - name: Deploy
+        env:
+          DOMAIN: bivouac.charding.dev
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEYPAIR: keypair.pem
+          DEPLOY_DIR: bivouac.charding.dev
+          SERVER_PORT: 5000
+          PORT_VARIABLE: BIVOUAC_PORT
+          SOURCE_DIR: bivouac
+        run: |
+          ls -lah ~/.ssh
+          ./deploy
